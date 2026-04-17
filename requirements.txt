@@ -1,0 +1,16 @@
+fastapi
+pydantic>=2.0
+sqlalchemy[asyncio]>=2.0
+asyncpg
+alembic
+faststream[rabbit]
+uvicorn
+httpx
+python-multipart
+python-dotenv
+pydantic-settings
+tenacity
+
+# Testing
+pytest
+pytest-asyncio

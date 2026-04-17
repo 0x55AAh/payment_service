@@ -1,0 +1,11 @@
+from enum import Enum
+
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+class Currency(str, Enum):
+    RUB = "RUB"
+    USD = "USD"
+    EUR = "EUR"

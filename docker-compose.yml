@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Основная база данных PostgreSQL для хранения платежей и событий Outbox
+  db:
+    image: postgres:15-alpine
+    container_name: payment_db
+    labels:
+      - "description=PostgreSQL database for storing payments and outbox messages"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-payment_service}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Брокер сообщений RabbitMQ для асинхронной обработки
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: payment_rabbitmq
+    labels:
+      - "description=RabbitMQ message broker for asynchronous payment processing"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+
+  # Основной API сервис на FastAPI
+  api:
+    build: .
+    container_name: payment_api
+    labels:
+      - "description=FastAPI application providing payment processing endpoints"
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-payment_service}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+
+  # Воркер (Consumer) для обработки платежей из очереди RabbitMQ
+  consumer:
+    build: .
+    container_name: payment_consumer
+    labels:
+      - "description=FastStream consumer that processes payments from RabbitMQ"
+    command: faststream run src.infrastructure.mq.consumer:app
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-payment_service}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+
+  # Релей (Relay) для переноса событий из БД (Outbox) в RabbitMQ
+  relay:
+    build: .
+    container_name: payment_relay
+    labels:
+      - "description=Transactional Outbox relay that moves events from DB to RabbitMQ"
+    command: python -m src.infrastructure.mq.relay
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-payment_service}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    depends_on:
+      - db
+      - rabbitmq
+
+volumes:
+  postgres_data:

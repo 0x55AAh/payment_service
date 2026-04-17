@@ -37,7 +37,7 @@ RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
 ### 2. Запуск через Docker Compose
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 Это поднимет:
@@ -52,7 +52,7 @@ docker-compose up -d --build
 После запуска контейнеров необходимо создать таблицы в базе данных:
 
 ```bash
-docker-compose exec api alembic upgrade head
+docker compose exec api alembic upgrade head
 ```
 
 ## Тестирование
@@ -66,7 +66,7 @@ pytest
 
 Или внутри контейнера:
 ```bash
-docker-compose exec api pytest
+docker compose exec api pytest
 ```
 
 ## Примеры использования API

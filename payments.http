@@ -1,0 +1,52 @@
+### Payment Service API Tests
+
+# Переменные
+@base_url = http://localhost:8000/api/v1
+@api_key = test_api_key
+
+### 1. Создание платежа
+# @name createPayment
+POST {{base_url}}/payments
+X-API-Key: {{api_key}}
+Idempotency-Key: {{$uuid}}
+Content-Type: application/json
+
+{
+  "amount": 100.50,
+  "currency": "RUB",
+  "description": "Оплата заказа из .http файла",
+  "metadata": {
+    "customer_id": "user_123",
+    "source": "http_file"
+  },
+  "webhook_url": "https://webhook.site/test"
+}
+
+### 2. Получение информации о платеже
+# Используйте payment_id из ответа предыдущего запроса
+@payment_id = {{createPayment.response.body.id}}
+GET {{base_url}}/payments/{{payment_id}}
+X-API-Key: {{api_key}}
+
+### 3. Ошибка: Неверный API Key
+POST {{base_url}}/payments
+X-API-Key: invalid_key
+Idempotency-Key: {{$uuid}}
+Content-Type: application/json
+
+{
+  "amount": 10.0,
+  "currency": "USD",
+  "description": "Тест ошибки авторизации"
+}
+
+### 4. Ошибка: Отсутствует Idempotency-Key
+POST {{base_url}}/payments
+X-API-Key: {{api_key}}
+Content-Type: application/json
+
+{
+  "amount": 10.0,
+  "currency": "USD",
+  "description": "Тест ошибки идемпотентности"
+}

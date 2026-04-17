@@ -16,16 +16,28 @@ settings.setup_logging()
 logger = logging.getLogger(__name__)
 
 # Настройка DLQ
-dlq_exchange = RabbitExchange("payments.dlx", type="direct")
-dlq_queue = RabbitQueue("payments.dlq", routing_key="payments.new.dead")
+DLQ_ROUTING_KEY = "payments.new.dead"
+
+dlq_exchange = RabbitExchange("payments.dlx")
+dlq_queue = RabbitQueue("payments.dlq")
 
 main_queue = RabbitQueue(
     "payments.new",
-    dead_letter_exchange="payments.dlx",
-    dead_letter_routing_key="payments.new.dead"
+    arguments={
+        "x-dead-letter-exchange": "payments.dlx",
+        "x-dead-letter-routing-key": DLQ_ROUTING_KEY
+    }
 )
 
 app = FastStream(broker)
+
+@app.after_startup
+async def setup_dlq():
+    """Явная декларация DLX/DLQ и привязка для гарантии работы RabbitMQ"""
+    await broker.declare_exchange(dlq_exchange)
+    queue = await broker.declare_queue(dlq_queue)
+    await queue.bind(dlq_exchange.name, routing_key=DLQ_ROUTING_KEY)
+    logger.info("DLX/DLQ configuration and binding complete")
 
 @retry(
     stop=stop_after_attempt(3),
@@ -42,7 +54,7 @@ async def send_webhook(url: str, payload: dict):
         response.raise_for_status()
         logger.info(f"Webhook sent to {url} with status {response.status_code}")
 
-@broker.subscriber(main_queue, retry=3)
+@broker.subscriber(main_queue)
 async def handle_payment_new(data: dict):
     payment_id = data.get("payment_id")
     webhook_url = data.get("webhook_url")
@@ -61,7 +73,7 @@ async def handle_payment_new(data: dict):
     async with async_session() as session:
         repo = SqlAlchemyPaymentRepository(session)
         await repo.update_payment_status(
-            payment_id=payment_id,
+            payment_id=str(payment_id),
             status=new_status,
             processed_at=datetime.now(timezone.utc)
         )
@@ -71,7 +83,7 @@ async def handle_payment_new(data: dict):
     
     # 4. Отправка webhook
     if webhook_url:
-        await send_webhook(webhook_url, {
+        await send_webhook(str(webhook_url), {
             "payment_id": payment_id,
             "status": new_status.value,
             "processed_at": datetime.now(timezone.utc).isoformat()

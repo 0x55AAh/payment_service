@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
 # Set work directory
 WORKDIR /app
@@ -23,5 +23,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
+# Copy and prepare entrypoint
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # Command to run the application (will be overridden in docker-compose for consumer)
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "payment.main:app", "--host", "0.0.0.0", "--port", "8000"]

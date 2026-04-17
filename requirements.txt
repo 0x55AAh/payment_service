@@ -4,6 +4,7 @@ sqlalchemy[asyncio]>=2.0
 asyncpg
 alembic
 faststream[rabbit]
+faststream[cli]
 uvicorn
 httpx
 python-multipart

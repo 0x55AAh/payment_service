@@ -19,8 +19,8 @@ class PaymentModel(Base):
     status: Mapped[PaymentStatus] = mapped_column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
     idempotency_key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     webhook_url: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
-    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 class OutboxModel(Base):
     __tablename__ = "outbox"
@@ -29,4 +29,4 @@ class OutboxModel(Base):
     event_type: Mapped[str] = mapped_column(String(100))
     payload: Mapped[dict] = mapped_column(JSON)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now)

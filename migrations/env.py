@@ -9,6 +9,7 @@ from alembic import context
 
 # Подгружаем наши модели для target_metadata
 from payment.infrastructure.database.models.base import Base
+from payment.infrastructure.database.models.payment import PaymentModel, OutboxModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -41,6 +41,12 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
         await self.session.flush()
 
     async def get_by_id(self, payment_id: str) -> Optional[Payment]:
+        import uuid
+        if isinstance(payment_id, str):
+            try:
+                payment_id = uuid.UUID(payment_id)
+            except ValueError:
+                pass
         result = await self.session.execute(
             select(PaymentModel).where(PaymentModel.id == payment_id)
         )

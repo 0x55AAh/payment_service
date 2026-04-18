@@ -84,7 +84,13 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             update(OutboxModel).where(OutboxModel.id == message_id).values(processed=True)
         )
 
-    async def update_payment_status(self, payment_id: str, status: Any, processed_at: Optional[Any] = None) -> None:
+    async def update_payment_status(
+        self, 
+        payment_id: str, 
+        status: Any, 
+        processed_at: Optional[Any] = None,
+        outbox_message: Optional[OutboxMessage] = None
+    ) -> None:
         values = {"status": status}
         if processed_at:
             values["processed_at"] = processed_at
@@ -92,6 +98,18 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
         await self.session.execute(
             update(PaymentModel).where(PaymentModel.id == payment_id).values(**values)
         )
+
+        if outbox_message:
+            outbox_model = OutboxModel(
+                id=outbox_message.id,
+                event_type=outbox_message.event_type,
+                payload=outbox_message.payload,
+                processed=outbox_message.processed,
+                created_at=outbox_message.created_at
+            )
+            self.session.add(outbox_model)
+            
+        await self.session.flush()
 
     def _to_entity(self, model: PaymentModel) -> Payment:
         return Payment(

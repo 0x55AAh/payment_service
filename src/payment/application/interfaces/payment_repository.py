@@ -25,5 +25,11 @@ class IPaymentRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_payment_status(self, payment_id: str, status: Any, processed_at: Optional[Any] = None) -> None:
+    async def update_payment_status(
+        self, 
+        payment_id: str, 
+        status: Any, 
+        processed_at: Optional[Any] = None,
+        outbox_message: Optional[OutboxMessage] = None
+    ) -> None:
         pass

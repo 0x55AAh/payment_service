@@ -7,10 +7,29 @@ from payment.presentation.schemas.payment import PaymentCreateSchema
 logger = logging.getLogger(__name__)
 
 class CreatePaymentUseCase:
+    """
+    Бизнес-логика создания нового платежа.
+
+    Выполняет проверку на идемпотентность, создает сущность платежа
+    и подготавливает сообщение для Outbox.
+    """
     def __init__(self, payment_repo: IPaymentRepository):
         self.payment_repo = payment_repo
 
     async def execute(self, payload: PaymentCreateSchema, idempotency_key: str) -> Payment:
+        """
+        Выполняет сценарий создания платежа.
+
+        Args:
+            payload: Данные для создания платежа (сумма, валюта и т.д.).
+            idempotency_key: Уникальный ключ идемпотентности.
+
+        Returns:
+            Payment: Созданная или существующая сущность платежа.
+
+        Raises:
+            ValueError: Если ключ идемпотентности пуст.
+        """
         if not idempotency_key or not idempotency_key.strip():
             logger.error("Attempt to create payment without idempotency key")
             raise ValueError("Idempotency-Key is mandatory and cannot be empty")

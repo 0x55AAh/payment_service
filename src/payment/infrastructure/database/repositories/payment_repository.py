@@ -117,7 +117,7 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
     def _to_entity(self, model: PaymentModel) -> Payment:
         return Payment(
             id=model.id,
-            amount=float(model.amount),
+            amount=model.amount,
             currency=model.currency,
             description=model.description,
             metadata=model.metadata_json,

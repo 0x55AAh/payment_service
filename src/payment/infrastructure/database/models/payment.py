@@ -1,3 +1,4 @@
+from decimal import Decimal
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Numeric, JSON, Enum as SQLEnum, DateTime, Boolean
@@ -12,7 +13,7 @@ class PaymentModel(Base):
     __tablename__ = "payments"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    amount: Mapped[float] = mapped_column(Numeric(precision=10, scale=2))
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=10, scale=2))
     currency: Mapped[Currency] = mapped_column(SQLEnum(Currency))
     description: Mapped[str] = mapped_column(String(255))
     metadata_json: Mapped[dict] = mapped_column(JSON, name="metadata", default=dict)

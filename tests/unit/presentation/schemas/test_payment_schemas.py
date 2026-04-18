@@ -1,3 +1,4 @@
+from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 from payment.presentation.schemas.payment import PaymentCreateSchema
@@ -11,7 +12,7 @@ def test_payment_create_schema_success():
         "webhook_url": "http://example.com/callback"
     }
     schema = PaymentCreateSchema(**data)
-    assert schema.amount == 100.0
+    assert schema.amount == Decimal("100.0")
     assert schema.currency == Currency.USD
     assert str(schema.webhook_url) == "http://example.com/callback"
 

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from datetime import datetime
 from typing import Dict, Any, Optional
 from uuid import UUID
@@ -5,7 +6,7 @@ from pydantic import BaseModel, Field, HttpUrl, ConfigDict
 from payment.domain.value_objects.payment_enums import PaymentStatus, Currency
 
 class PaymentCreateSchema(BaseModel):
-    amount: float = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0)
     currency: Currency
     description: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -23,7 +24,7 @@ class PaymentResponseSchema(BaseModel):
 
 class PaymentDetailSchema(BaseModel):
     id: UUID
-    amount: float
+    amount: Decimal
     currency: Currency
     description: str
     metadata: Dict[str, Any]

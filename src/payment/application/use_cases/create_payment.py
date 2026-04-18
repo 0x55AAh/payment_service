@@ -58,7 +58,7 @@ class CreatePaymentUseCase:
             event_type="payments.new",
             payload={
                 "payment_id": str(payment.id),
-                "amount": payment.amount,
+                "amount": str(payment.amount),
                 "currency": payment.currency,
                 "webhook_url": payment.webhook_url
             }

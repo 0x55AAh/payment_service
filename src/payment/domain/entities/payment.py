@@ -1,3 +1,4 @@
+from decimal import Decimal
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
@@ -6,7 +7,7 @@ from payment.domain.value_objects.payment_enums import PaymentStatus, Currency
 
 @dataclass
 class Payment:
-    amount: float
+    amount: Decimal
     currency: Currency
     description: str
     idempotency_key: str

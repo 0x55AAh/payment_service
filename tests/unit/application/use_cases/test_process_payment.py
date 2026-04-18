@@ -77,3 +77,34 @@ async def test_process_payment_failed(payment_repo, monkeypatch):
     msg = payment_repo.outbox[0]
     assert msg.event_type == "payments.processed"
     assert msg.payload["status"] == PaymentStatus.FAILED.value
+
+@pytest.mark.asyncio
+async def test_process_payment_idempotency(payment_repo, monkeypatch):
+    # Setup: create a payment already in SUCCEEDED status
+    payment = Payment(
+        amount=100.0,
+        currency=Currency.USD,
+        description="Already processed payment",
+        idempotency_key="idemp-key-1",
+        webhook_url="http://example.com/callback",
+        status=PaymentStatus.SUCCEEDED
+    )
+    await payment_repo.save(payment)
+    
+    # We don't mock sleep/random because they should NOT be called if idempotency works
+    # But to be safe and avoid actual sleeping if logic fails, we can mock them to fail or track calls
+    processed_calls = 0
+    async def mock_sleep(delay):
+        nonlocal processed_calls
+        processed_calls += 1
+    
+    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+    
+    use_case = ProcessPaymentUseCase(payment_repo)
+    status = await use_case.execute(str(payment.id))
+    
+    assert status == PaymentStatus.SUCCEEDED
+    assert processed_calls == 0  # Should NOT have slept (skipped processing)
+    
+    # Check that outbox was not created again
+    assert len(payment_repo.outbox) == 0

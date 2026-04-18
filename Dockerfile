@@ -22,11 +22,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . .
-
-# Copy and prepare entrypoint
-RUN chmod +x entrypoint.sh
-
-ENTRYPOINT ["/app/entrypoint.sh"]
-
-# Command to run the application (will be overridden in docker-compose for consumer)
-CMD ["uvicorn", "payment.main:app", "--host", "0.0.0.0", "--port", "8000"]

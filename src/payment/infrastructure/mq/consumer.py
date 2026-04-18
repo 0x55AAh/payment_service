@@ -35,14 +35,26 @@ processed_queue = RabbitQueue(
 )
 
 app = FastStream(broker)
+http_client: httpx.AsyncClient = None
 
 @app.after_startup
-async def setup_dlq():
-    """Явная декларация DLX/DLQ и привязка для гарантии работы RabbitMQ"""
+async def setup_resources():
+    """Явная декларация DLX/DLQ и инициализация HTTP-клиента"""
+    global http_client
+    http_client = httpx.AsyncClient()
+    
     await broker.declare_exchange(dlq_exchange)
     queue = await broker.declare_queue(dlq_queue)
     await queue.bind(dlq_exchange.name, routing_key=DLQ_ROUTING_KEY)
-    logger.info("DLX/DLQ configuration and binding complete")
+    logger.info("DLX/DLQ configuration and HTTP client initialized")
+
+@app.after_shutdown
+async def close_resources():
+    """Закрытие HTTP-клиента при завершении приложения"""
+    global http_client
+    if http_client:
+        await http_client.aclose()
+        logger.info("HTTP client closed")
 
 @retry(
     stop=stop_after_attempt(3),
@@ -58,6 +70,7 @@ async def send_webhook(url: str, payload: dict):
     Выполняет POST-запрос по указанному URL с JSON-телом.
     В случае сетевых ошибок или ответов с кодами 4xx/5xx выполняется
     повторная попытка (до 3 раз) с экспоненциальной задержкой.
+    Использует общий долгоживущий http_client.
 
     Args:
         url: URL-адрес для отправки уведомления.
@@ -66,12 +79,15 @@ async def send_webhook(url: str, payload: dict):
     Raises:
         httpx.HTTPStatusError: Если запрос завершился с ошибкой статуса после всех попыток.
         httpx.RequestError: Если возникла сетевая ошибка при отправке запроса.
+        RuntimeError: Если http_client не инициализирован.
     """
-    async with httpx.AsyncClient() as client:
-        logger.info(f"Sending webhook to {url}...")
-        response = await client.post(url, json=payload, timeout=5.0)
-        response.raise_for_status()
-        logger.info(f"Webhook sent to {url} with status {response.status_code}")
+    if http_client is None:
+        raise RuntimeError("HTTP client is not initialized")
+        
+    logger.info(f"Sending webhook to {url}...")
+    response = await http_client.post(url, json=payload, timeout=5.0)
+    response.raise_for_status()
+    logger.info(f"Webhook sent to {url} with status {response.status_code}")
 
 async def process_payment_data(payment_id: str):
     """

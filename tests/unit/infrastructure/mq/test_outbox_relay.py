@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from unittest.mock import AsyncMock, patch
 from payment.infrastructure.mq.relay import OutboxRelay
 from typing import Optional, List, Dict, Any
@@ -106,25 +107,29 @@ async def test_run_single_batch(relay, repo, monkeypatch):
     mock_broker_cm = AsyncMock()
     mock_broker = patch("payment.infrastructure.mq.relay.broker", mock_broker_cm)
     
-    # Мокаем asyncio.sleep, чтобы он бросал StopIteration (или аналогичное), чтобы прервать while True
+    # Мокаем asyncio.wait_for, чтобы он бросал StopIteration (или аналогичное), чтобы прервать while True
     class ExitLoop(Exception): pass
     
-    async def mock_sleep(seconds):
+    async def mock_wait_for(aw, timeout):
+        # Закрываем корутину, чтобы избежать RuntimeWarning: coroutine was never awaited
+        if asyncio.iscoroutine(aw):
+            aw.close()
         raise ExitLoop()
         
-    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+    monkeypatch.setattr("asyncio.wait_for", mock_wait_for)
     
     with mock_session_factory, mock_repo_class, mock_broker:
-        with patch.object(OutboxRelay, "process_message", new_callable=AsyncMock) as mock_process:
-            try:
-                await relay.run()
-            except ExitLoop:
-                pass
-            
-            # Проверяем, что процесс сообщения был вызван
-            mock_process.assert_called_once_with(msg, repo)
-            # Проверяем, что коммит был вызван
-            mock_session.commit.assert_called()
+        with patch("asyncio.get_running_loop"): # Избегаем проблем с сигналами
+            with patch.object(OutboxRelay, "process_message", new_callable=AsyncMock) as mock_process:
+                try:
+                    await relay.run()
+                except ExitLoop:
+                    pass
+                
+                # Проверяем, что процесс сообщения был вызван
+                mock_process.assert_called_once_with(msg, repo)
+                # Проверяем, что коммит был вызван
+                mock_session.commit.assert_called()
 
 @pytest.mark.asyncio
 async def test_run_rollback_on_error(relay, repo, monkeypatch):
@@ -139,22 +144,27 @@ async def test_run_rollback_on_error(relay, repo, monkeypatch):
     mock_broker = patch("payment.infrastructure.mq.relay.broker", mock_broker_cm)
     
     class ExitLoop(Exception): pass
-    async def mock_sleep(seconds): raise ExitLoop()
-    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+    async def mock_wait_for(aw, timeout):
+        # Закрываем корутину, чтобы избежать RuntimeWarning: coroutine was never awaited
+        if asyncio.iscoroutine(aw):
+            aw.close()
+        raise ExitLoop()
+    monkeypatch.setattr("asyncio.wait_for", mock_wait_for)
     
     with mock_session_factory, mock_repo_class, mock_broker:
-        with patch.object(OutboxRelay, "process_message", side_effect=Exception("Publish failed")):
-            try:
-                await relay.run()
-            except ExitLoop:
-                pass
-            
-                # Проверяем, что был откат
-                mock_session.rollback.assert_called()
+        with patch("asyncio.get_running_loop"):
+            with patch.object(OutboxRelay, "process_message", side_effect=Exception("Publish failed")):
+                try:
+                    await relay.run()
+                except ExitLoop:
+                    pass
+                
+                    # Проверяем, что был откат
+                    mock_session.rollback.assert_called()
 
 @pytest.mark.asyncio
 async def test_run_empty_outbox_sleeps(relay, repo, monkeypatch):
-    """Проверка, что если сообщений нет, вызывается sleep(5)"""
+    """Проверка, что если сообщений нет, вызывается wait_for с stop_event.wait() и таймаутом 5"""
     mock_session = AsyncMock()
     mock_session_factory = patch("payment.infrastructure.mq.relay.async_session", return_value=mock_session)
     mock_session.__aenter__.return_value = mock_session
@@ -162,20 +172,24 @@ async def test_run_empty_outbox_sleeps(relay, repo, monkeypatch):
     mock_broker_cm = AsyncMock()
     mock_broker = patch("payment.infrastructure.mq.relay.broker", mock_broker_cm)
     
-    sleep_calls = []
+    wait_for_calls = []
     class StopLoop(Exception): pass
-    async def mock_sleep(seconds):
-        sleep_calls.append(seconds)
-        if seconds == 5: # Первое попадание в if not messages
+    async def mock_wait_for(aw, timeout):
+        # Закрываем корутину, чтобы избежать RuntimeWarning: coroutine was never awaited
+        if asyncio.iscoroutine(aw):
+            aw.close()
+        wait_for_calls.append(timeout)
+        if timeout == 5: # Попадание в if not messages
              raise StopLoop()
         return
 
-    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+    monkeypatch.setattr("asyncio.wait_for", mock_wait_for)
     
     with mock_session_factory, mock_repo_class, mock_broker:
-        try:
-            await relay.run()
-        except StopLoop:
-            pass
+        with patch("asyncio.get_running_loop"):
+            try:
+                await relay.run()
+            except StopLoop:
+                pass
             
-    assert 5 in sleep_calls
+    assert 5 in wait_for_calls

@@ -66,7 +66,10 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
 
     async def get_unprocessed_outbox_messages(self, limit: int = 10) -> List[OutboxMessage]:
         result = await self.session.execute(
-            select(OutboxModel).where(OutboxModel.processed == False).limit(limit)
+            select(OutboxModel)
+            .where(OutboxModel.processed == False)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
         )
         models = result.scalars().all()
         return [

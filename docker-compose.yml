@@ -32,7 +32,6 @@ services:
   # Основной API сервис на FastAPI
   api:
     build: .
-    container_name: payment_api
     labels:
       - "description=FastAPI application providing payment processing endpoints"
     command: uvicorn payment.main:app --host 0.0.0.0 --port 8000 --reload
@@ -50,7 +49,6 @@ services:
   # Воркер (Consumer) для обработки платежей из очереди RabbitMQ
   consumer:
     build: .
-    container_name: payment_consumer
     labels:
       - "description=FastStream consumer that processes payments from RabbitMQ"
     command: faststream run payment.infrastructure.mq.consumer:app
@@ -66,7 +64,6 @@ services:
   # Релей (Relay) для переноса событий из БД (Outbox) в RabbitMQ
   relay:
     build: .
-    container_name: payment_relay
     labels:
       - "description=Transactional Outbox relay that moves events from DB to RabbitMQ"
     command: python -m payment.infrastructure.mq.relay

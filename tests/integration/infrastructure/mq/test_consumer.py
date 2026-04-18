@@ -1,14 +1,25 @@
 import pytest
 import httpx
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from payment.infrastructure.mq.consumer import send_webhook
+import payment.infrastructure.mq.consumer as consumer
+
+@pytest.fixture(autouse=True)
+def setup_http_client():
+    """Фикстура для инициализации http_client перед тестами"""
+    consumer.http_client = httpx.AsyncClient()
+    yield
+    # Не закрываем, так как в тестах мы мокаем post, 
+    # но для чистоты можно было бы закрыть.
+    # В данном случае просто обнуляем.
+    consumer.http_client = None
 
 @pytest.mark.asyncio
 async def test_send_webhook_success():
     url = "http://example.com/webhook"
     payload = {"status": "success"}
     
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch.object(consumer.http_client, "post") as mock_post:
         mock_response = httpx.Response(200, request=httpx.Request("POST", url))
         mock_post.return_value = mock_response
         
@@ -26,7 +37,7 @@ async def test_send_webhook_retry_then_success(monkeypatch):
     from tenacity import wait_none
     monkeypatch.setattr("payment.infrastructure.mq.consumer.wait_exponential", lambda **kwargs: wait_none())
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch.object(consumer.http_client, "post") as mock_post:
         # Мокаем ответ, который выбрасывает ошибку при raise_for_status
         fail_response = httpx.Response(500, request=httpx.Request("POST", url))
         
@@ -44,10 +55,10 @@ async def test_send_webhook_max_retries_reached(monkeypatch):
     url = "http://example.com/webhook"
     payload = {"status": "success"}
     
-    from tenacity import wait_none, stop_after_attempt
+    from tenacity import wait_none
     monkeypatch.setattr("payment.infrastructure.mq.consumer.wait_exponential", lambda **kwargs: wait_none())
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch.object(consumer.http_client, "post") as mock_post:
         fail_response = httpx.Response(500, request=httpx.Request("POST", url))
         mock_post.return_value = fail_response
         

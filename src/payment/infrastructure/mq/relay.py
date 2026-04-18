@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 from typing import List
 from payment.infrastructure.database.session import async_session
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
@@ -20,6 +21,12 @@ class OutboxRelay:
     """
     def __init__(self, limit: int = 10):
         self.limit = limit
+        self._stop_event = asyncio.Event()
+
+    def stop(self, *args):
+        """Останавливает цикл обработки."""
+        logger.info("Stopping Outbox Relay...")
+        self._stop_event.set()
 
     async def fetch_messages(self, repo: IPaymentRepository) -> List[OutboxMessage]:
         """
@@ -49,22 +56,32 @@ class OutboxRelay:
         """
         Запускает основной цикл Relay процесса.
 
-        1. Устанавливает соединение с брокером.
-        2. В бесконечном цикле опрашивает базу данных.
-        3. Обрабатывает сообщения пачками в рамках отдельных транзакций.
+        1. Устанавливает обработчики сигналов для Graceful Shutdown.
+        2. Устанавливает соединение с брокером.
+        3. В цикле опрашивает базу данных, пока не получен сигнал остановки.
+        4. Обрабатывает сообщения пачками в рамках отдельных транзакций.
         """
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, self.stop)
+
         logger.info("Starting Outbox Relay...")
         async with broker:
-            while True:
+            while not self._stop_event.is_set():
                 async with async_session() as session:
                     repo = SqlAlchemyPaymentRepository(session)
                     messages = await self.fetch_messages(repo)
                     
                     if not messages:
-                        await asyncio.sleep(5)
+                        try:
+                            await asyncio.wait_for(self._stop_event.wait(), timeout=5)
+                        except asyncio.TimeoutError:
+                            pass
                         continue
                     
                     for msg in messages:
+                        if self._stop_event.is_set():
+                            break
                         try:
                             await self.process_message(msg, repo)
                             await session.commit()
@@ -72,7 +89,12 @@ class OutboxRelay:
                             logger.error(f"Error processing outbox message {msg.id}: {e}")
                             await session.rollback()
                 
-                await asyncio.sleep(1)
+                try:
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=1)
+                except asyncio.TimeoutError:
+                    pass
+        
+        logger.info("Outbox Relay stopped gracefully.")
 
 async def run_relay():
     """Точка входа для запуска Relay процесса."""

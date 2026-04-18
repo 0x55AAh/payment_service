@@ -22,9 +22,10 @@ class ProcessPaymentUseCase:
         """
         Выполняет сценарий обработки платежа.
 
-        1. Эмулирует задержку обработки (2-5 сек).
-        2. Определяет результат (успех/провал).
-        3. Обновляет статус в БД.
+        1. Проверяет текущий статус платежа (идемпотентность).
+        2. Эмулирует задержку обработки (2-5 сек).
+        3. Определяет результат (успех/провал).
+        4. Обновляет статус в БД.
 
         Args:
             payment_id: Идентификатор платежа для обработки.
@@ -32,18 +33,24 @@ class ProcessPaymentUseCase:
         Returns:
             PaymentStatus: Новый статус платежа.
         """
+        payment = await self.payment_repo.get_by_id(payment_id)
+        
+        # 1. Проверка текущего статуса платежа (идемпотентность)
+        if payment and payment.status in [PaymentStatus.SUCCEEDED, PaymentStatus.FAILED]:
+            logger.info(f"Payment {payment_id} is already in final state: {payment.status}. Skipping processing.")
+            return payment.status
+
         logger.info(f"Processing payment {payment_id}...")
         
-        # 1. Эмуляция обработки (2-5 сек)
+        # 2. Эмуляция обработки (2-5 сек)
         delay = random.uniform(2, 5)
         await asyncio.sleep(delay)
         
-        # 2. Определение результата (90% успех)
+        # 3. Определение результата (90% успех)
         is_success = random.random() < 0.9
         new_status = PaymentStatus.SUCCEEDED if is_success else PaymentStatus.FAILED
         
-        # 3. Обновление статуса в БД и подготовка Outbox сообщения
-        payment = await self.payment_repo.get_by_id(payment_id)
+        # 4. Обновление статуса в БД и подготовка Outbox сообщения
         webhook_url = payment.webhook_url if payment else None
 
         processed_at = datetime.now(timezone.utc)

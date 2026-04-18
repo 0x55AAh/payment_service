@@ -152,3 +152,42 @@ async def test_create_payment_missing_idempotency_key(setup_db):
     )
     # FastAPI возвращает 422 для пропущенных обязательных заголовков
     assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_create_payment_invalid_amount(setup_db):
+    idempotency_key = str(uuid.uuid4())
+    payload = {
+        "amount": -5.0,
+        "currency": "USD",
+        "description": "Negative amount",
+        "webhook_url": "https://example.com/webhook"
+    }
+    response = client.post(
+        "/api/v1/payments",
+        json=payload,
+        headers={
+            "X-API-Key": "test_api_key",
+            "Idempotency-Key": idempotency_key
+        }
+    )
+    assert response.status_code == 422
+    assert "greater than 0" in str(response.json())
+
+@pytest.mark.asyncio
+async def test_create_payment_invalid_currency(setup_db):
+    idempotency_key = str(uuid.uuid4())
+    payload = {
+        "amount": 100.0,
+        "currency": "YEN",
+        "description": "Unsupported currency",
+        "webhook_url": "https://example.com/webhook"
+    }
+    response = client.post(
+        "/api/v1/payments",
+        json=payload,
+        headers={
+            "X-API-Key": "test_api_key",
+            "Idempotency-Key": idempotency_key
+        }
+    )
+    assert response.status_code == 422

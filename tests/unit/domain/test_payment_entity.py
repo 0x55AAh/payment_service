@@ -1,6 +1,8 @@
 from datetime import datetime
+
 from payment.domain.entities.payment import Payment
 from payment.domain.value_objects.payment_enums import PaymentStatus, Currency
+
 
 def test_payment_initial_state():
     payment = Payment(

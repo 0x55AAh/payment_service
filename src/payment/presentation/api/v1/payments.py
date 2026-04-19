@@ -1,11 +1,15 @@
 import logging
+from typing import Any
+from uuid import UUID
+
 from fastapi import APIRouter, Header, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from payment.presentation.schemas.payment import PaymentCreateSchema, PaymentResponseSchema, PaymentDetailSchema
+
 from payment.application.use_cases.create_payment import CreatePaymentUseCase
 from payment.application.use_cases.get_payment import GetPaymentUseCase
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
 from payment.infrastructure.database.session import get_db_session
+from payment.presentation.schemas.payment import PaymentCreateSchema, PaymentResponseSchema, PaymentDetailSchema
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +20,7 @@ async def create_payment(
     payload: PaymentCreateSchema,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db_session)
-):
+) -> Any:
     """
     Создание нового платежа.
     """
@@ -28,9 +32,9 @@ async def create_payment(
 
 @router.get("/{payment_id}", response_model=PaymentDetailSchema)
 async def get_payment(
-    payment_id: str,
+    payment_id: UUID | str,
     db: AsyncSession = Depends(get_db_session)
-):
+) -> Any:
     """
     Получение информации о платеже.
     """

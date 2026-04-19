@@ -1,12 +1,12 @@
-import os
+from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/payment_service")
+from payment.infrastructure.config.settings import settings
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
-async def get_db_session():
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
             yield session

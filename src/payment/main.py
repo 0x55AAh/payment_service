@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+
 from payment.infrastructure.config.settings import settings
 from payment.presentation.api.dependencies import verify_api_key
 
@@ -11,7 +12,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Payment Service",
         description="Async Payment Processing Service",
-        version="1.0.0",
+        version="1.0.1",
         dependencies=[Depends(verify_api_key)]
     )
 

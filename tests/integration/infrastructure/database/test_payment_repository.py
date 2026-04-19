@@ -1,11 +1,12 @@
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from payment.domain.entities.outbox import OutboxMessage
+from payment.domain.entities.payment import Payment
+from payment.domain.value_objects.payment_enums import Currency, PaymentStatus
 from payment.infrastructure.database.models.base import Base
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
-from payment.domain.entities.payment import Payment
-from payment.domain.entities.outbox import OutboxMessage
-from payment.domain.value_objects.payment_enums import Currency, PaymentStatus
 
 # Используем SQLite для интеграционных тестов репозитория
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

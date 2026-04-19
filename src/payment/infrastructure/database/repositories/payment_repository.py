@@ -1,16 +1,22 @@
-from typing import Optional, List, Any
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from payment.application.interfaces.payment_repository import IPaymentRepository
-from payment.domain.entities.payment import Payment
 from payment.domain.entities.outbox import OutboxMessage
+from payment.domain.entities.payment import Payment
+from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.database.models.payment import PaymentModel, OutboxModel
+
 
 class SqlAlchemyPaymentRepository(IPaymentRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def save(self, payment: Payment, outbox_message: Optional[OutboxMessage] = None) -> None:
+    async def save(self, payment: Payment, outbox_message: OutboxMessage | None = None) -> None:
         # Конвертация entity -> model
         payment_model = PaymentModel(
             id=payment.id,
@@ -40,7 +46,7 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             
         await self.session.flush()
 
-    async def get_by_id(self, payment_id: str) -> Optional[Payment]:
+    async def get_by_id(self, payment_id: UUID | str) -> Payment | None:
         import uuid
         if isinstance(payment_id, str):
             try:
@@ -55,7 +61,7 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             return self._to_entity(model)
         return None
 
-    async def get_by_idempotency_key(self, key: str) -> Optional[Payment]:
+    async def get_by_idempotency_key(self, key: str) -> Payment | None:
         result = await self.session.execute(
             select(PaymentModel).where(PaymentModel.idempotency_key == key)
         )
@@ -64,7 +70,7 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             return self._to_entity(model)
         return None
 
-    async def get_unprocessed_outbox_messages(self, limit: int = 10) -> List[OutboxMessage]:
+    async def get_unprocessed_outbox_messages(self, limit: int = 10) -> list[OutboxMessage]:
         result = await self.session.execute(
             select(OutboxModel)
             .where(OutboxModel.processed == False)
@@ -82,19 +88,19 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             ) for m in models
         ]
 
-    async def mark_outbox_as_processed(self, message_id: str) -> None:
+    async def mark_outbox_as_processed(self, message_id: UUID | str) -> None:
         await self.session.execute(
             update(OutboxModel).where(OutboxModel.id == message_id).values(processed=True)
         )
 
     async def update_payment_status(
         self, 
-        payment_id: str, 
-        status: Any, 
-        processed_at: Optional[Any] = None,
-        outbox_message: Optional[OutboxMessage] = None
+        payment_id: UUID | str, 
+        status: PaymentStatus, 
+        processed_at: datetime | None = None,
+        outbox_message: OutboxMessage | None = None
     ) -> None:
-        values = {"status": status}
+        values: dict[str, Any] = {"status": status}
         if processed_at:
             values["processed_at"] = processed_at
             

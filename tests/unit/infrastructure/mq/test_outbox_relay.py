@@ -1,11 +1,15 @@
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch
-from payment.infrastructure.mq.relay import OutboxRelay
 from typing import Optional, List, Dict, Any
+from unittest.mock import AsyncMock, patch
+from uuid import UUID
+
+import pytest
+
 from payment.application.interfaces.payment_repository import IPaymentRepository
-from payment.domain.entities.payment import Payment
 from payment.domain.entities.outbox import OutboxMessage
+from payment.domain.entities.payment import Payment
+from payment.infrastructure.mq.relay import OutboxRelay
+
 
 class InMemoryPaymentRepository(IPaymentRepository):
     def __init__(self):
@@ -29,9 +33,9 @@ class InMemoryPaymentRepository(IPaymentRepository):
     async def get_unprocessed_outbox_messages(self, limit: int = 10) -> List[OutboxMessage]:
         return [msg for msg in self.outbox if not msg.processed][:limit]
 
-    async def mark_outbox_as_processed(self, message_id: str) -> None:
+    async def mark_outbox_as_processed(self, message_id: UUID | str) -> None:
         for msg in self.outbox:
-            if str(msg.id) == message_id:
+            if str(msg.id) == str(message_id):
                 msg.processed = True
                 break
 

@@ -1,8 +1,11 @@
 from decimal import Decimal
+
 import pytest
 from pydantic import ValidationError
-from payment.presentation.schemas.payment import PaymentCreateSchema
+
 from payment.domain.value_objects.payment_enums import Currency
+from payment.presentation.schemas.payment import PaymentCreateSchema
+
 
 def test_payment_create_schema_success():
     data = {

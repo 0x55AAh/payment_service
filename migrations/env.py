@@ -1,8 +1,7 @@
 import asyncio
-import os
 from logging.config import fileConfig
 
-from sqlalchemy import pool
+from sqlalchemy import pool, Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
@@ -11,14 +10,14 @@ from alembic import context
 from payment.infrastructure.database.models.base import Base
 from payment.infrastructure.database.models.payment import PaymentModel, OutboxModel
 
+from payment.infrastructure.config.settings import settings
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Переопределяем sqlalchemy.url из переменной окружения, если она задана
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Переопределяем sqlalchemy.url из централизованных настроек
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -52,7 +51,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection) -> None:
+def do_run_migrations(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():

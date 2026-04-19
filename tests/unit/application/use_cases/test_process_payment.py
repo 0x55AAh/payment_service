@@ -1,8 +1,9 @@
 import pytest
-import asyncio
-from payment.domain.entities.payment import Payment
+
 from payment.application.use_cases.process_payment import ProcessPaymentUseCase
+from payment.domain.entities.payment import Payment
 from payment.domain.value_objects.payment_enums import Currency, PaymentStatus
+
 
 @pytest.mark.asyncio
 async def test_process_payment_succeeded(payment_repo, monkeypatch):

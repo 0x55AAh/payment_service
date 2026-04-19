@@ -1,45 +1,62 @@
-import pytest
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
+
+import pytest
+
+from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.mq.consumer import PaymentSaga
+from payment.application.schemas.events import PaymentNewEvent, PaymentProcessedEvent
+
 
 @pytest.mark.asyncio
 async def test_handle_payment_new_success():
-    data = {"payment_id": "test-uuid-123"}
+    event = PaymentNewEvent(
+        payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        webhook_url="http://example.com/webhook"
+    )
     
     with patch("payment.infrastructure.mq.consumer.process_payment_data", new_callable=AsyncMock) as mock_process:
-        await PaymentSaga.handle_payment_new(data)
-        mock_process.assert_called_once_with("test-uuid-123")
+        await PaymentSaga.handle_payment_new(event)
+        mock_process.assert_called_once_with("550e8400-e29b-41d4-a716-446655440000")
 
 @pytest.mark.asyncio
 async def test_handle_payment_processed_with_webhook():
-    data = {
-        "payment_id": "test-uuid-123",
-        "status": "SUCCEEDED",
-        "processed_at": "2024-01-01T00:00:00Z",
-        "webhook_url": "http://example.com/webhook"
-    }
+    processed_at = datetime.fromisoformat("2024-01-01T00:00:00Z".replace("Z", "+00:00"))
+    event = PaymentProcessedEvent(
+        payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        status=PaymentStatus.SUCCEEDED,
+        processed_at=processed_at,
+        webhook_url="http://example.com/webhook"
+    )
     
     with patch("payment.infrastructure.mq.consumer.send_webhook", new_callable=AsyncMock) as mock_send:
-        await PaymentSaga.handle_payment_processed(data)
+        await PaymentSaga.handle_payment_processed(event)
         
         mock_send.assert_called_once_with(
             "http://example.com/webhook",
             {
-                "payment_id": "test-uuid-123",
-                "status": "SUCCEEDED",
-                "processed_at": "2024-01-01T00:00:00Z"
+                "payment_id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "succeeded",
+                "processed_at": "2024-01-01T00:00:00+00:00"
             }
         )
 
 @pytest.mark.asyncio
 async def test_handle_payment_processed_no_webhook():
-    data = {
-        "payment_id": "test-uuid-123",
-        "status": "SUCCEEDED"
-    }
+    """
+    Проверка, что если webhook_url отсутствует, отправка вебхука не вызывается.
+    """
+    processed_at = datetime.fromisoformat("2024-01-01T00:00:00Z".replace("Z", "+00:00"))
+    event = PaymentProcessedEvent(
+        payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        status=PaymentStatus.SUCCEEDED,
+        processed_at=processed_at,
+        webhook_url=None
+    )
     
     with patch("payment.infrastructure.mq.consumer.send_webhook", new_callable=AsyncMock) as mock_send:
-        await PaymentSaga.handle_payment_processed(data)
+        await PaymentSaga.handle_payment_processed(event)
         mock_send.assert_not_called()
 
 @pytest.mark.asyncio

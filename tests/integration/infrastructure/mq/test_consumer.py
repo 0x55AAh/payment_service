@@ -1,8 +1,11 @@
-import pytest
+from unittest.mock import patch
+
 import httpx
-from unittest.mock import patch, MagicMock
-from payment.infrastructure.mq.consumer import send_webhook
+import pytest
+
 import payment.infrastructure.mq.consumer as consumer
+from payment.infrastructure.mq.consumer import send_webhook
+
 
 @pytest.fixture(autouse=True)
 def setup_http_client():

@@ -1,15 +1,18 @@
-from decimal import Decimal
 from datetime import datetime
-from typing import Dict, Any, Optional
+from decimal import Decimal
+from typing import Any
 from uuid import UUID
+
 from pydantic import BaseModel, Field, HttpUrl, ConfigDict
+
 from payment.domain.value_objects.payment_enums import PaymentStatus, Currency
+
 
 class PaymentCreateSchema(BaseModel):
     amount: Decimal = Field(..., gt=0)
     currency: Currency
     description: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     webhook_url: HttpUrl
 
 class PaymentResponseSchema(BaseModel):
@@ -27,12 +30,12 @@ class PaymentDetailSchema(BaseModel):
     amount: Decimal
     currency: Currency
     description: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     status: PaymentStatus
     idempotency_key: str
     webhook_url: str
     created_at: datetime
-    processed_at: Optional[datetime] = None
+    processed_at: datetime | None = None
 
     model_config = ConfigDict(
         from_attributes=True

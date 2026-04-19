@@ -1,13 +1,18 @@
 import logging
+from typing import Any
+
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
 from faststream import FastStream
 from faststream.rabbit import RabbitQueue, RabbitExchange
-from payment.infrastructure.mq.broker import broker
-from payment.infrastructure.database.session import async_session
-from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from payment.application.use_cases.process_payment import ProcessPaymentUseCase
+from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.config.settings import settings
+from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
+from payment.infrastructure.database.session import async_session
+from payment.infrastructure.mq.broker import broker
+from payment.application.schemas.events import PaymentNewEvent, PaymentProcessedEvent
 
 settings.setup_logging()
 logger = logging.getLogger(__name__)
@@ -35,10 +40,10 @@ processed_queue = RabbitQueue(
 )
 
 app = FastStream(broker)
-http_client: httpx.AsyncClient = None
+http_client: httpx.AsyncClient | None = None
 
 @app.after_startup
-async def setup_resources():
+async def setup_resources() -> None:
     """Явная декларация DLX/DLQ и инициализация HTTP-клиента"""
     global http_client
     http_client = httpx.AsyncClient()
@@ -49,7 +54,7 @@ async def setup_resources():
     logger.info("DLX/DLQ configuration and HTTP client initialized")
 
 @app.after_shutdown
-async def close_resources():
+async def close_resources() -> None:
     """Закрытие HTTP-клиента при завершении приложения"""
     global http_client
     if http_client:
@@ -63,7 +68,7 @@ async def close_resources():
         f"Retrying webhook send (attempt {retry_state.attempt_number})..."
     )
 )
-async def send_webhook(url: str, payload: dict):
+async def send_webhook(url: str, payload: dict[str, Any]) -> None:
     """
     Отправка webhook с ретраем через tenacity.
 
@@ -89,7 +94,7 @@ async def send_webhook(url: str, payload: dict):
     response.raise_for_status()
     logger.info(f"Webhook sent to {url} with status {response.status_code}")
 
-async def process_payment_data(payment_id: str):
+async def process_payment_data(payment_id: str) -> PaymentStatus:
     """
     Выполняет основную логику обработки платежа.
 
@@ -115,7 +120,7 @@ retry_saga_step = retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=2, min=2, max=10),
     before_sleep=lambda retry_state: logger.warning(
-        f"Retrying saga step {retry_state.fn.__name__} "
+        f"Retrying saga step {retry_state.fn.__name__} "  # type: ignore[union-attr]
         f"(attempt {retry_state.attempt_number})..."
     )
 )
@@ -130,7 +135,7 @@ class PaymentSaga:
     @staticmethod
     @broker.subscriber(main_queue)
     @retry_saga_step
-    async def handle_payment_new(data: dict):
+    async def handle_payment_new(event: PaymentNewEvent) -> None:
         """
         Обработчик новых платежей из очереди RabbitMQ.
 
@@ -138,17 +143,15 @@ class PaymentSaga:
         2. Сама обработка теперь создает Outbox сообщение для вебхука.
 
         Args:
-            data: Словарь с данными платежа (payment_id, webhook_url).
+            event: Объект события с данными платежа.
         """
-        payment_id = data.get("payment_id")
-        
         # Выполнение бизнес-логики обработки
-        await process_payment_data(str(payment_id))
+        await process_payment_data(str(event.payment_id))
 
     @staticmethod
     @broker.subscriber(processed_queue)
     @retry_saga_step
-    async def handle_payment_processed(data: dict):
+    async def handle_payment_processed(event: PaymentProcessedEvent) -> None:
         """
         Обработчик завершенных платежей для отправки вебхуков.
 
@@ -156,24 +159,19 @@ class PaymentSaga:
         2. Отправляет webhook с результатом обработки.
 
         Args:
-            data: Словарь с данными (payment_id, status, processed_at, webhook_url).
+            event: Объект события с результатом обработки.
         """
-        webhook_url = data.get("webhook_url")
-        payment_id = data.get("payment_id")
-        status = data.get("status")
-        processed_at = data.get("processed_at")
-
-        if webhook_url:
-            await send_webhook(str(webhook_url), {
-                "payment_id": payment_id,
-                "status": status,
-                "processed_at": processed_at
+        if event.webhook_url:
+            await send_webhook(str(event.webhook_url), {
+                "payment_id": str(event.payment_id),
+                "status": event.status,
+                "processed_at": event.processed_at.isoformat() if event.processed_at else None
             })
 
     @staticmethod
     @broker.subscriber(dlq_queue)
     @retry_saga_step
-    async def handle_dead_letters(data: dict):
+    async def handle_dead_letters(data: dict[str, Any]) -> None:
         """
         Обработчик сообщений, попавших в Dead Letter Queue (DLQ).
 

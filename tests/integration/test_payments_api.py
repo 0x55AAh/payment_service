@@ -1,10 +1,12 @@
-import pytest
 import uuid
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from payment.main import app
-from payment.infrastructure.database.session import get_db_session
+
 from payment.infrastructure.database.models.base import Base
+from payment.infrastructure.database.session import get_db_session
+from payment.main import app
 
 # Используем SQLite в памяти для тестов
 # Примечание: для полноценных интеграционных тестов лучше использовать Postgres,

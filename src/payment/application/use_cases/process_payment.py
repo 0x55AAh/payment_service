@@ -2,9 +2,11 @@ import asyncio
 import logging
 import random
 from datetime import datetime, timezone
+from uuid import UUID
+
 from payment.application.interfaces.payment_repository import IPaymentRepository
-from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.domain.entities.outbox import OutboxMessage
+from payment.domain.value_objects.payment_enums import PaymentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ class ProcessPaymentUseCase:
     def __init__(self, payment_repo: IPaymentRepository):
         self.payment_repo = payment_repo
 
-    async def execute(self, payment_id: str) -> PaymentStatus:
+    async def execute(self, payment_id: UUID | str) -> PaymentStatus:
         """
         Выполняет сценарий обработки платежа.
 
@@ -49,7 +51,7 @@ class ProcessPaymentUseCase:
         # 3. Определение результата (90% успех)
         is_success = random.random() < 0.9
         new_status = PaymentStatus.SUCCEEDED if is_success else PaymentStatus.FAILED
-        
+
         # 4. Обновление статуса в БД и подготовка Outbox сообщения
         webhook_url = payment.webhook_url if payment else None
 

@@ -1,13 +1,17 @@
-import os
-import logging
 import json
+import logging
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class JsonFormatter(logging.Formatter):
     """
     Кастомный JSON-форматтер для логирования.
     """
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Преобразует запись лога в JSON-строку.
+        """
         log_record = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -33,7 +37,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8"
     )
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         root_logger = logging.getLogger()
         root_logger.setLevel(self.LOG_LEVEL)
 
@@ -42,6 +46,8 @@ class Settings(BaseSettings):
             root_logger.removeHandler(handler)
 
         handler = logging.StreamHandler()
+
+        formatter: logging.Formatter
         if self.LOG_JSON:
             formatter = JsonFormatter()
         else:

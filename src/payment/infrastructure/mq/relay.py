@@ -1,13 +1,14 @@
 import asyncio
 import logging
 import signal
-from typing import List
-from payment.infrastructure.database.session import async_session
-from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
-from payment.infrastructure.mq.broker import broker
-from payment.infrastructure.config.settings import settings
-from payment.domain.entities.outbox import OutboxMessage
+from typing import Any
+
 from payment.application.interfaces.payment_repository import IPaymentRepository
+from payment.domain.entities.outbox import OutboxMessage
+from payment.infrastructure.config.settings import settings
+from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
+from payment.infrastructure.database.session import async_session
+from payment.infrastructure.mq.broker import broker
 
 settings.setup_logging()
 logger = logging.getLogger(__name__)
@@ -19,16 +20,19 @@ class OutboxRelay:
     Реализует паттерн Transactional Outbox Relay, обеспечивая надежную
     доставку событий ("at-least-once" delivery) из базы данных в брокер сообщений.
     """
+    EMPTY_POLLING_INTERVAL: float = 5.0
+    PROCESSING_INTERVAL: float = 1.0
+
     def __init__(self, limit: int = 10):
         self.limit = limit
         self._stop_event = asyncio.Event()
 
-    def stop(self, *args):
+    def stop(self, *args: Any) -> None:
         """Останавливает цикл обработки."""
         logger.info("Stopping Outbox Relay...")
         self._stop_event.set()
 
-    async def fetch_messages(self, repo: IPaymentRepository) -> List[OutboxMessage]:
+    async def fetch_messages(self, repo: IPaymentRepository) -> list[OutboxMessage]:
         """
         Получает порцию необработанных сообщений из репозитория.
 
@@ -36,11 +40,11 @@ class OutboxRelay:
             repo: Репозиторий для доступа к таблице Outbox.
 
         Returns:
-            List[OutboxMessage]: Список сообщений для отправки.
+            list[OutboxMessage]: Список сообщений для отправки.
         """
         return await repo.get_unprocessed_outbox_messages(limit=self.limit)
 
-    async def process_message(self, msg: OutboxMessage, repo: IPaymentRepository):
+    async def process_message(self, msg: OutboxMessage, repo: IPaymentRepository) -> None:
         """
         Обрабатывает одно сообщение: публикует его в брокер и помечает как обработанное.
 
@@ -50,9 +54,9 @@ class OutboxRelay:
         """
         logger.info(f"Publishing message {msg.id} to {msg.event_type}")
         await broker.publish(msg.payload, queue=msg.event_type)
-        await repo.mark_outbox_as_processed(str(msg.id))
+        await repo.mark_outbox_as_processed(msg.id)
 
-    async def run(self):
+    async def run(self) -> None:
         """
         Запускает основной цикл Relay процесса.
 
@@ -74,7 +78,7 @@ class OutboxRelay:
                     
                     if not messages:
                         try:
-                            await asyncio.wait_for(self._stop_event.wait(), timeout=5)
+                            await asyncio.wait_for(self._stop_event.wait(), timeout=self.EMPTY_POLLING_INTERVAL)
                         except asyncio.TimeoutError:
                             pass
                         continue
@@ -90,13 +94,13 @@ class OutboxRelay:
                             await session.rollback()
                 
                 try:
-                    await asyncio.wait_for(self._stop_event.wait(), timeout=1)
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=self.PROCESSING_INTERVAL)
                 except asyncio.TimeoutError:
                     pass
         
         logger.info("Outbox Relay stopped gracefully.")
 
-async def run_relay():
+async def run_relay() -> None:
     """Точка входа для запуска Relay процесса."""
     relay = OutboxRelay()
     await relay.run()

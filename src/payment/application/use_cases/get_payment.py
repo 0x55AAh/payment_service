@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+from uuid import UUID
+
 from payment.application.interfaces.payment_repository import IPaymentRepository
 from payment.domain.entities.payment import Payment
 
@@ -12,7 +13,7 @@ class GetPaymentUseCase:
     def __init__(self, payment_repo: IPaymentRepository):
         self.payment_repo = payment_repo
 
-    async def execute(self, payment_id: str) -> Optional[Payment]:
+    async def execute(self, payment_id: UUID | str) -> Payment | None:
         """
         Ищет платеж по его идентификатору.
 
@@ -20,7 +21,7 @@ class GetPaymentUseCase:
             payment_id: Идентификатор платежа.
 
         Returns:
-            Optional[Payment]: Сущность платежа или None, если не найден.
+            Payment | None: Сущность платежа или None, если не найден.
         """
         logger.info(f"Fetching information for payment {payment_id}")
         payment = await self.payment_repo.get_by_id(payment_id)

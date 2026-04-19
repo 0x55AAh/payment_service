@@ -6,7 +6,6 @@ from payment.application.use_cases.create_payment import CreatePaymentUseCase
 from payment.application.use_cases.get_payment import GetPaymentUseCase
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
 from payment.infrastructure.database.session import get_db_session
-from payment.presentation.api.dependencies import verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +15,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 async def create_payment(
     payload: PaymentCreateSchema,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
-    db: AsyncSession = Depends(get_db_session),
-    _api_key: str = Depends(verify_api_key)
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Создание нового платежа.
@@ -31,8 +29,7 @@ async def create_payment(
 @router.get("/{payment_id}", response_model=PaymentDetailSchema)
 async def get_payment(
     payment_id: str,
-    db: AsyncSession = Depends(get_db_session),
-    _api_key: str = Depends(verify_api_key)
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Получение информации о платеже.

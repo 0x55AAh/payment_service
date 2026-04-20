@@ -6,24 +6,24 @@ import pytest
 
 from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.mq.consumer import PaymentSaga
-from payment.application.schemas.events import PaymentNewEvent, PaymentProcessedEvent
+from payment.application.schemas.integration_events import PaymentCreated, PaymentProcessed
 
 
 @pytest.mark.asyncio
-async def test_handle_payment_new_success():
-    event = PaymentNewEvent(
+async def test_handle_payment_created_success():
+    event = PaymentCreated(
         payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
         webhook_url="http://example.com/webhook"
     )
     
     with patch("payment.infrastructure.mq.consumer.process_payment_data", new_callable=AsyncMock) as mock_process:
-        await PaymentSaga.handle_payment_new(event)
+        await PaymentSaga.handle_payment_created(event)
         mock_process.assert_called_once_with("550e8400-e29b-41d4-a716-446655440000")
 
 @pytest.mark.asyncio
 async def test_handle_payment_processed_with_webhook():
     processed_at = datetime.fromisoformat("2024-01-01T00:00:00Z".replace("Z", "+00:00"))
-    event = PaymentProcessedEvent(
+    event = PaymentProcessed(
         payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
         status=PaymentStatus.SUCCEEDED,
         processed_at=processed_at,
@@ -48,7 +48,7 @@ async def test_handle_payment_processed_no_webhook():
     Проверка, что если webhook_url отсутствует, отправка вебхука не вызывается.
     """
     processed_at = datetime.fromisoformat("2024-01-01T00:00:00Z".replace("Z", "+00:00"))
-    event = PaymentProcessedEvent(
+    event = PaymentProcessed(
         payment_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
         status=PaymentStatus.SUCCEEDED,
         processed_at=processed_at,
@@ -89,8 +89,8 @@ async def test_retry_logic_on_failure(monkeypatch):
         await mock_process(str(payment_id))
 
     # Временно подменяем метод в классе
-    monkeypatch.setattr(PaymentSaga, "handle_payment_new", handle_retry_test)
+    monkeypatch.setattr(PaymentSaga, "handle_payment_created", handle_retry_test)
     
-    await PaymentSaga.handle_payment_new(data)
+    await PaymentSaga.handle_payment_created(data)
     
     assert mock_process.call_count == 3

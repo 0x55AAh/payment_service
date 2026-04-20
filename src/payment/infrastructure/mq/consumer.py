@@ -6,13 +6,13 @@ from faststream import FastStream
 from faststream.rabbit import RabbitQueue, RabbitExchange
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from payment.application.schemas.integration_events import PaymentCreated, PaymentProcessed
 from payment.application.use_cases.process_payment import ProcessPaymentUseCase
 from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.config.settings import settings
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
 from payment.infrastructure.database.session import async_session
 from payment.infrastructure.mq.broker import broker
-from payment.application.schemas.events import PaymentNewEvent, PaymentProcessedEvent
 
 settings.setup_logging()
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ class PaymentSaga:
     @staticmethod
     @broker.subscriber(main_queue)
     @retry_saga_step
-    async def handle_payment_new(event: PaymentNewEvent) -> None:
+    async def handle_payment_created(event: PaymentCreated) -> None:
         """
         Обработчик новых платежей из очереди RabbitMQ.
 
@@ -151,7 +151,7 @@ class PaymentSaga:
     @staticmethod
     @broker.subscriber(processed_queue)
     @retry_saga_step
-    async def handle_payment_processed(event: PaymentProcessedEvent) -> None:
+    async def handle_payment_processed(event: PaymentProcessed) -> None:
         """
         Обработчик завершенных платежей для отправки вебхуков.
 
@@ -164,7 +164,7 @@ class PaymentSaga:
         if event.webhook_url:
             await send_webhook(str(event.webhook_url), {
                 "payment_id": str(event.payment_id),
-                "status": event.status,
+                "status": event.status.value if hasattr(event.status, 'value') else event.status,
                 "processed_at": event.processed_at.isoformat() if event.processed_at else None
             })
 

@@ -12,7 +12,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Payment Service",
         description="Async Payment Processing Service",
-        version="1.0.1",
+        version="1.0.2",
         dependencies=[Depends(verify_api_key)]
     )
 

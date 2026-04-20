@@ -123,7 +123,7 @@ curl -X GET http://localhost:8000/api/v1/payments/{payment_id} \
    - В одной транзакции создается запись `payments` и сообщение в таблице `outbox` с типом `payments.new`.
 2. **Публикация события (Relay):**
    - Фоновый процесс `relay` считывает необработанные сообщения из `outbox` и публикует их в RabbitMQ (`payments.new`).
-3. **Обработка платежа (Consumer step 1: `handle_payment_new`):**
+3. **Обработка платежа (Consumer step 1: `handle_payment_created`):**
    - Консьюмер получает сообщение, выполняет `ProcessPaymentUseCase` (эмуляция задержки и выбор результата).
    - В одной транзакции обновляет статус платежа и создает новое сообщение `outbox` с типом `payments.processed`.
 4. **Уведомление (Consumer step 2: `handle_payment_processed`):**

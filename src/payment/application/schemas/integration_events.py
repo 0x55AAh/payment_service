@@ -6,13 +6,13 @@ from pydantic import BaseModel, HttpUrl
 from payment.domain.value_objects.payment_enums import PaymentStatus
 
 
-class PaymentNewEvent(BaseModel):
+class PaymentCreated(BaseModel):
     """Событие создания нового платежа."""
     payment_id: UUID
     webhook_url: HttpUrl | None = None
 
 
-class PaymentProcessedEvent(BaseModel):
+class PaymentProcessed(BaseModel):
     """Событие завершения обработки платежа."""
     payment_id: UUID
     status: PaymentStatus

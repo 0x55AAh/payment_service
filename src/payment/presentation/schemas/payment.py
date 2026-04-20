@@ -9,16 +9,18 @@ from payment.domain.value_objects.payment_enums import PaymentStatus, Currency
 
 
 class PaymentCreateSchema(BaseModel):
-    amount: Decimal = Field(..., gt=0)
-    currency: Currency
-    description: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
-    webhook_url: HttpUrl
+    """Схема для создания нового платежа."""
+    amount: Decimal = Field(..., gt=0, description="Сумма платежа (должна быть больше 0)")
+    currency: Currency = Field(..., description="Валюта платежа")
+    description: str = Field(..., description="Описание платежа")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Дополнительные данные")
+    webhook_url: HttpUrl = Field(..., description="URL для отправки уведомлений")
 
 class PaymentResponseSchema(BaseModel):
-    payment_id: UUID = Field(alias="id")
-    status: PaymentStatus
-    created_at: datetime
+    """Схема краткого ответа после создания платежа."""
+    payment_id: UUID = Field(alias="id", description="Уникальный идентификатор платежа")
+    status: PaymentStatus = Field(..., description="Текущий статус платежа")
+    created_at: datetime = Field(..., description="Дата и время создания")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -26,16 +28,17 @@ class PaymentResponseSchema(BaseModel):
     )
 
 class PaymentDetailSchema(BaseModel):
-    id: UUID
-    amount: Decimal
-    currency: Currency
-    description: str
-    metadata: dict[str, Any]
-    status: PaymentStatus
-    idempotency_key: str
-    webhook_url: str
-    created_at: datetime
-    processed_at: datetime | None = None
+    """Схема детальной информации о платеже."""
+    id: UUID = Field(..., description="Уникальный идентификатор платежа")
+    amount: Decimal = Field(..., description="Сумма платежа")
+    currency: Currency = Field(..., description="Валюта платежа")
+    description: str = Field(..., description="Описание платежа")
+    metadata: dict[str, Any] = Field(..., description="Дополнительные данные")
+    status: PaymentStatus = Field(..., description="Текущий статус платежа")
+    idempotency_key: str = Field(..., description="Ключ идемпотентности")
+    webhook_url: str = Field(..., description="URL для отправки уведомлений")
+    created_at: datetime = Field(..., description="Дата и время создания")
+    processed_at: datetime | None = Field(None, description="Дата и время завершения обработки")
 
     model_config = ConfigDict(
         from_attributes=True

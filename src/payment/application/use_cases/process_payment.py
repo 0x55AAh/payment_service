@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from payment.application.interfaces.payment_repository import IPaymentRepository
-from payment.application.schemas.integration_events import PaymentProcessed
 from payment.domain.entities.outbox import OutboxMessage
 from payment.domain.value_objects.payment_enums import PaymentStatus
 

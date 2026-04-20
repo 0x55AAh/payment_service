@@ -23,6 +23,9 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_record)
 
 class Settings(BaseSettings):
+    """
+    Класс настроек приложения, использующий pydantic-settings для загрузки из переменных окружения и .env файла.
+    """
     API_KEY: str = "test_api_key"
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/payment_service"
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
@@ -39,6 +42,11 @@ class Settings(BaseSettings):
     )
 
     def setup_logging(self) -> None:
+        """
+        Настраивает систему логирования приложения.
+        Устанавливает уровень логирования, удаляет существующие обработчики и добавляет
+        StreamHandler с соответствующим форматтером (JSON или текстовый).
+        """
         root_logger = logging.getLogger()
         root_logger.setLevel(self.LOG_LEVEL)
 

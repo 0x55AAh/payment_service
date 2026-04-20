@@ -6,11 +6,17 @@ from typing import Any
 from payment.application.interfaces.payment_repository import IPaymentRepository
 from payment.domain.entities.outbox import OutboxMessage
 from payment.infrastructure.config.settings import settings
+from payment.infrastructure.database.mappers import start_mappers
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
 from payment.infrastructure.database.session import async_session
 from payment.infrastructure.mq.broker import broker
 
+# Инициализация мапперов БД
+start_mappers()
+
+# Инициализация логирования
 settings.setup_logging()
+
 logger = logging.getLogger(__name__)
 
 class OutboxRelay:

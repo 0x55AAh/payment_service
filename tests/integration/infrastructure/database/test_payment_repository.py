@@ -5,8 +5,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from payment.domain.entities.outbox import OutboxMessage
 from payment.domain.entities.payment import Payment
 from payment.domain.value_objects.payment_enums import Currency, PaymentStatus
-from payment.infrastructure.database.models.base import Base
+from payment.infrastructure.database.mappers import metadata, start_mappers
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
+
+# Инициализируем мапперы перед тестами
+start_mappers()
 
 # Используем SQLite для интеграционных тестов репозитория
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -15,14 +18,14 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 async def db_session():
     engine = create_async_engine(TEST_DATABASE_URL)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(metadata.create_all)
     
     Session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with Session() as session:
         yield session
     
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(metadata.drop_all)
     await engine.dispose()
 
 @pytest.mark.asyncio
@@ -96,8 +99,7 @@ async def test_repository_get_unprocessed_skip_locked(db_session):
     await repo.save(payment, outbox_message=msg1)
     # Сохраняем второе сообщение через отдельный вызов (хотя репозиторий сейчас привязан к платежу в save)
     # Но мы можем напрямую добавить в сессию для теста
-    from payment.infrastructure.database.models.payment import OutboxModel
-    db_session.add(OutboxModel(id=msg2.id, event_type=msg2.event_type, payload=msg2.payload))
+    db_session.add(msg2)
     await db_session.commit()
 
     # Сессия 1: выбираем сообщение

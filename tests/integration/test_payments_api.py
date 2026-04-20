@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from payment.infrastructure.database.models.base import Base
+from payment.infrastructure.database.mappers import metadata
 from payment.infrastructure.database.session import get_db_session
 from payment.main import app
 
@@ -32,11 +32,11 @@ def setup_db():
     
     async def _setup():
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(metadata.create_all)
     
     async def _teardown():
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(metadata.drop_all)
 
     loop.run_until_complete(_setup())
     yield

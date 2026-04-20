@@ -1,6 +1,7 @@
 import logging
 
 from payment.application.interfaces.payment_repository import IPaymentRepository
+from payment.application.schemas.integration_events import PaymentCreated
 from payment.domain.entities.outbox import OutboxMessage
 from payment.domain.entities.payment import Payment
 from payment.presentation.schemas.payment import PaymentCreateSchema

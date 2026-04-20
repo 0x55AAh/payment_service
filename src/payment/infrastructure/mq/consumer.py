@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from uuid import UUID
 
 import httpx
 from faststream import FastStream
@@ -10,11 +11,17 @@ from payment.application.schemas.integration_events import PaymentCreated, Payme
 from payment.application.use_cases.process_payment import ProcessPaymentUseCase
 from payment.domain.value_objects.payment_enums import PaymentStatus
 from payment.infrastructure.config.settings import settings
+from payment.infrastructure.database.mappers import start_mappers
 from payment.infrastructure.database.repositories.payment_repository import SqlAlchemyPaymentRepository
 from payment.infrastructure.database.session import async_session
 from payment.infrastructure.mq.broker import broker
 
+# Инициализация мапперов БД
+start_mappers()
+
+# Инициализация логирования
 settings.setup_logging()
+
 logger = logging.getLogger(__name__)
 
 # Настройка DLQ
@@ -94,7 +101,7 @@ async def send_webhook(url: str, payload: dict[str, Any]) -> None:
     response.raise_for_status()
     logger.info(f"Webhook sent to {url} with status {response.status_code}")
 
-async def process_payment_data(payment_id: str) -> PaymentStatus:
+async def process_payment_data(payment_id: UUID | str) -> PaymentStatus:
     """
     Выполняет основную логику обработки платежа.
 
@@ -146,7 +153,7 @@ class PaymentSaga:
             event: Объект события с данными платежа.
         """
         # Выполнение бизнес-логики обработки
-        await process_payment_data(str(event.payment_id))
+        await process_payment_data(event.payment_id)
 
     @staticmethod
     @broker.subscriber(processed_queue)
@@ -164,8 +171,8 @@ class PaymentSaga:
         if event.webhook_url:
             await send_webhook(str(event.webhook_url), {
                 "payment_id": str(event.payment_id),
-                "status": event.status.value if hasattr(event.status, 'value') else event.status,
-                "processed_at": event.processed_at.isoformat() if event.processed_at else None
+                "status": event.status,
+                "processed_at": event.processed_at.isoformat()
             })
 
     @staticmethod

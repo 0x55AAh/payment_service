@@ -1,16 +1,13 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool, Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
-
-# Подгружаем наши модели для target_metadata
-from payment.infrastructure.database.models.base import Base
-from payment.infrastructure.database.models.payment import PaymentModel, OutboxModel
-
 from payment.infrastructure.config.settings import settings
+# Подгружаем метаданные для target_metadata
+from payment.infrastructure.database.mappers import metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -24,8 +21,8 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# target_metadata = Base.metadata
-target_metadata = Base.metadata
+# target_metadata = metadata
+target_metadata = metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

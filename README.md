@@ -23,15 +23,28 @@
 
 ### 1. Подготовка окружения
 
-Создайте файл `.env` в корне проекта (можно скопировать из `.env.example`, если он есть, или использовать значения по умолчанию):
+Создайте файл `.env` в корне проекта на основе [.env.example](.env.example):
 
 ```env
+# API Settings
 API_KEY=test_api_key
+
+# Database Settings
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=payment_service
+# Внутри Docker используйте 'db' в качестве хоста
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/payment_service
+
+# Message Broker Settings
+# Внутри Docker используйте 'rabbitmq' в качестве хоста
 RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+
+# Logging Settings
+LOG_LEVEL=INFO
+LOG_JSON=False
 ```
 
 ### 2. Запуск через Docker Compose

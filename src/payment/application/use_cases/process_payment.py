@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from payment.application.interfaces.payment_repository import IPaymentRepository
+from payment.application.schemas.integration_events import PaymentProcessed
 from payment.domain.entities.outbox import OutboxMessage
 from payment.domain.value_objects.payment_enums import PaymentStatus
 
@@ -62,7 +63,7 @@ class ProcessPaymentUseCase:
             outbox_message = OutboxMessage(
                 event_type="payments.processed",
                 payload={
-                    "payment_id": payment_id,
+                    "payment_id": str(payment_id),
                     "status": new_status.value,
                     "processed_at": processed_at.isoformat(),
                     "webhook_url": webhook_url

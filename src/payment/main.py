@@ -2,9 +2,13 @@ from fastapi import FastAPI, Depends
 
 from payment.infrastructure.config.settings import settings
 from payment.presentation.api.dependencies import verify_api_key
+from payment.infrastructure.database.mappers import start_mappers
 
 # Инициализация логирования
 settings.setup_logging()
+
+# Инициализация мапперов БД
+start_mappers()
 
 from payment.presentation.api.v1 import payments
 

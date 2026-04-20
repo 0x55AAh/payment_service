@@ -18,7 +18,7 @@ async def test_handle_payment_created_success():
     
     with patch("payment.infrastructure.mq.consumer.process_payment_data", new_callable=AsyncMock) as mock_process:
         await PaymentSaga.handle_payment_created(event)
-        mock_process.assert_called_once_with("550e8400-e29b-41d4-a716-446655440000")
+        mock_process.assert_called_once_with(UUID("550e8400-e29b-41d4-a716-446655440000"))
 
 @pytest.mark.asyncio
 async def test_handle_payment_processed_with_webhook():
@@ -37,7 +37,7 @@ async def test_handle_payment_processed_with_webhook():
             "http://example.com/webhook",
             {
                 "payment_id": "550e8400-e29b-41d4-a716-446655440000",
-                "status": "succeeded",
+                "status": PaymentStatus.SUCCEEDED,
                 "processed_at": "2024-01-01T00:00:00+00:00"
             }
         )

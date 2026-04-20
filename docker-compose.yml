@@ -13,6 +13,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - payment_network
 
   # Брокер сообщений RabbitMQ для асинхронной обработки
   rabbitmq:
@@ -26,13 +28,15 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    networks:
+      - payment_network
 
   # Основной API сервис на FastAPI
   api:
     build: .
     labels:
       - "description=FastAPI application providing payment processing endpoints"
-    command: uvicorn payment.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run uvicorn payment.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
     ports:
@@ -43,13 +47,15 @@ services:
     depends_on:
       - db
       - rabbitmq
+    networks:
+      - payment_network
 
   # Воркер (Consumer) для обработки платежей из очереди RabbitMQ
   consumer:
     build: .
     labels:
       - "description=FastStream consumer that processes payments from RabbitMQ"
-    command: faststream run payment.infrastructure.mq.consumer:app
+    command: uv run faststream run payment.infrastructure.mq.consumer:app
     volumes:
       - .:/app
     environment:
@@ -58,13 +64,15 @@ services:
     depends_on:
       - db
       - rabbitmq
+    networks:
+      - payment_network
 
   # Релей (Relay) для переноса событий из БД (Outbox) в RabbitMQ
   relay:
     build: .
     labels:
       - "description=Transactional Outbox relay that moves events from DB to RabbitMQ"
-    command: python -m payment.infrastructure.mq.relay
+    command: uv run python -m payment.infrastructure.mq.relay
     volumes:
       - .:/app
     environment:
@@ -73,6 +81,12 @@ services:
     depends_on:
       - db
       - rabbitmq
+    networks:
+      - payment_network
+
+networks:
+  payment_network:
+    driver: bridge
 
 volumes:
   postgres_data:

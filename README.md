@@ -89,19 +89,22 @@ docker compose up -d --scale api=2 --scale consumer=3 --scale relay=2
 
 ### Запуск unit и интеграционных тестов
 
-Локально (требуется установленный `pytest` и `pytest-asyncio`):
+Локально (требуется установленный `uv`):
 ```bash
-pytest
+uv sync --extra test
+uv run pytest
 ```
 
 Или внутри контейнера:
 ```bash
-docker compose exec api pytest
+docker compose exec api uv run pytest
 ```
 
 ## Примеры использования API
 
 Для всех запросов требуется заголовок `X-API-Key`. Значение по умолчанию: `test_api_key`.
+
+Вы можете использовать [HTTP Client](payments.http) в IntelliJ IDEA / PyCharm для быстрого тестирования эндпоинтов.
 
 ### 1. Создание платежа
 

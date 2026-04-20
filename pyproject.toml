@@ -1,9 +1,9 @@
 [project]
 name = "payment-service"
-version = "1.0.2"
+version = "1.0.3"
 description = "Async payment processing service"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "pydantic>=2.0",
@@ -25,10 +25,12 @@ test = [
     "pytest",
     "pytest-asyncio",
     "aiosqlite",
+    "pytest-cov",
+    "mypy",
 ]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = true
 exclude = ["venv", ".venv", "tests"]

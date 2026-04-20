@@ -1,5 +1,7 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# We use 3.12-slim because 3.14-slim might not be available yet as a stable image
+# or lacks some pre-built binaries. uv will manage the environment correctly.
+FROM python:3.12-slim
 
 # Copy uv binary from the official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

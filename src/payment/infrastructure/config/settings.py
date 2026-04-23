@@ -27,12 +27,25 @@ class Settings(BaseSettings):
     Класс настроек приложения, использующий pydantic-settings для загрузки из переменных окружения и .env файла.
     """
     API_KEY: str = "test_api_key"
+    # Database settings
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/payment_service"
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
+    
+    # Outbox settings
+    OUTBOX_CLEANUP_INTERVAL: int = 60  # Интервал очистки в секундах
+    OUTBOX_RETENTION_DAYS: int = 1     # Сколько дней хранить обработанные сообщения
+    OUTBOX_BATCH_SIZE: int = 10        # Размер пачки для обработки Relay
+    OUTBOX_EMPTY_POLLING_INTERVAL: float = 5.0  # Интервал ожидания при пустой очереди (сек)
+    OUTBOX_PROCESSING_INTERVAL: float = 1.0     # Интервал между батчами (сек)
 
     # Logging settings
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    LOG_DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S"
     LOG_JSON: bool = False
 
     model_config = SettingsConfigDict(
@@ -61,6 +74,8 @@ class Settings(BaseSettings):
             formatter = JsonFormatter()
         else:
             formatter = logging.Formatter(self.LOG_FORMAT)
+
+        formatter.datefmt = self.LOG_DATE_FORMAT
         
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)

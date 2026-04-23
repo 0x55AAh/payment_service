@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from payment.application.interfaces.payment_repository import IPaymentRepository
@@ -88,6 +88,20 @@ class SqlAlchemyPaymentRepository(IPaymentRepository):
             .with_for_update(skip_locked=True)
         )
         return list(result.scalars().all())
+
+    async def delete_processed_outbox_messages(self, older_than: datetime) -> int:
+        """
+        Удаляет старые обработанные сообщения Outbox для поддержания производительности.
+
+        :param older_than: Удалять сообщения, созданные раньше этого времени.
+        :return: Количество удаленных сообщений.
+        """
+        result = await self.session.execute(
+            delete(OutboxMessage)
+            .where(OutboxMessage.processed == True)        # type: ignore[arg-type]
+            .where(OutboxMessage.created_at < older_than)  # type: ignore[arg-type]
+        )
+        return result.rowcount  # type: ignore
 
     async def mark_outbox_as_processed(self, message_id: UUID | str) -> None:
         """

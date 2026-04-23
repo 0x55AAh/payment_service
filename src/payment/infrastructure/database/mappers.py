@@ -23,7 +23,7 @@ payment_table = Table(
     Column("status", Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING, comment="Статус"),
     Column("idempotency_key", String(255), unique=True, index=True, nullable=False, comment="Ключ идемпотентности"),
     Column("webhook_url", String(255), nullable=False, comment="URL уведомлений"),
-    Column("created_at", DateTime(timezone=True), nullable=False, comment="Дата создания"),
+    Column("created_at", DateTime(timezone=True), index=True, nullable=False, comment="Дата создания"),
     Column("processed_at", DateTime(timezone=True), nullable=True, comment="Дата обработки"),
     comment="Таблица для хранения информации о платежах"
 )
@@ -34,8 +34,8 @@ outbox_table = Table(
     Column("id", PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment="Идентификатор сообщения"),
     Column("event_type", String(100), nullable=False, comment="Тип события"),
     Column("payload", JSON, nullable=False, comment="Данные события"),
-    Column("processed", Boolean, nullable=False, default=False, comment="Флаг обработки"),
-    Column("created_at", DateTime(timezone=True), nullable=False, comment="Дата создания"),
+    Column("processed", Boolean, index=True, nullable=False, default=False, comment="Флаг обработки"),
+    Column("created_at", DateTime(timezone=True), index=True, nullable=False, comment="Дата создания"),
     comment="Таблица для реализации паттерна Transactional Outbox"
 )
 

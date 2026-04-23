@@ -1,4 +1,5 @@
 from typing import Optional, List, Dict, Any
+from uuid import UUID
 
 import pytest
 
@@ -29,11 +30,19 @@ class InMemoryPaymentRepository(IPaymentRepository):
     async def get_unprocessed_outbox_messages(self, limit: int = 10) -> List[OutboxMessage]:
         return [msg for msg in self.outbox if not msg.processed][:limit]
 
-    async def mark_outbox_as_processed(self, message_id: str) -> None:
+    async def mark_outbox_as_processed(self, message_id: UUID | str) -> None:
         for msg in self.outbox:
-            if str(msg.id) == message_id:
+            if str(msg.id) == str(message_id):
                 msg.processed = True
                 break
+
+    async def delete_processed_outbox_messages(self, older_than: Any) -> int:
+        initial_count = len(self.outbox)
+        self.outbox = [
+            msg for msg in self.outbox 
+            if not (msg.processed and msg.created_at < older_than)
+        ]
+        return initial_count - len(self.outbox)
 
     async def update_payment_status(
         self, 

@@ -26,12 +26,11 @@ class OutboxRelay:
     Реализует паттерн Transactional Outbox Relay, обеспечивая надежную
     доставку событий ("at-least-once" delivery) из базы данных в брокер сообщений.
     """
-    EMPTY_POLLING_INTERVAL: float = 5.0
-    PROCESSING_INTERVAL: float = 1.0
 
-    def __init__(self, limit: int = 10):
-        self.limit = limit
+    def __init__(self, limit: int | None = None):
+        self.limit = limit or settings.OUTBOX_BATCH_SIZE
         self._stop_event = asyncio.Event()
+        self._last_cleanup = 0.0
 
     def stop(self, *args: Any) -> None:
         """Останавливает цикл обработки."""
@@ -62,6 +61,24 @@ class OutboxRelay:
         await broker.publish(msg.payload, queue=msg.event_type)
         await repo.mark_outbox_as_processed(msg.id)
 
+    async def cleanup(self, repo: IPaymentRepository) -> None:
+        """
+        Выполняет очистку старых обработанных сообщений.
+        """
+        from datetime import datetime, timedelta, timezone
+        import time
+
+        now_ts = time.time()
+        if now_ts - self._last_cleanup < settings.OUTBOX_CLEANUP_INTERVAL:
+            return
+
+        retention_time = datetime.now(timezone.utc) - timedelta(days=settings.OUTBOX_RETENTION_DAYS)
+        count = await repo.delete_processed_outbox_messages(retention_time)
+        if count > 0:
+            logger.info(f"Cleaned up {count} processed outbox messages older than {retention_time}")
+        
+        self._last_cleanup = now_ts
+
     async def run(self) -> None:
         """
         Запускает основной цикл Relay процесса.
@@ -84,11 +101,12 @@ class OutboxRelay:
                     
                     if not messages:
                         try:
-                            await asyncio.wait_for(self._stop_event.wait(), timeout=self.EMPTY_POLLING_INTERVAL)
+                            await asyncio.wait_for(self._stop_event.wait(), timeout=settings.OUTBOX_EMPTY_POLLING_INTERVAL)
                         except asyncio.TimeoutError:
                             pass
                         continue
-                    
+
+                    logger.info(f"Messages received: {len(messages)}")
                     for msg in messages:
                         if self._stop_event.is_set():
                             break
@@ -98,9 +116,17 @@ class OutboxRelay:
                         except Exception as e:
                             logger.error(f"Error processing outbox message {msg.id}: {e}")
                             await session.rollback()
+                    
+                    # Попытка очистки после обработки пачки
+                    try:
+                        await self.cleanup(repo)
+                        await session.commit()
+                    except Exception as e:
+                        logger.error(f"Error during outbox cleanup: {e}")
+                        await session.rollback()
                 
                 try:
-                    await asyncio.wait_for(self._stop_event.wait(), timeout=self.PROCESSING_INTERVAL)
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=settings.OUTBOX_PROCESSING_INTERVAL)
                 except asyncio.TimeoutError:
                     pass
         

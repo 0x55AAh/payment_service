@@ -4,6 +4,7 @@
 
 ## Технологии
 
+- **Package Manager:** [uv](https://github.com/astral-sh/uv) (быстрая замена pip)
 - **Framework:** FastAPI + Pydantic v2
 - **Database:** PostgreSQL + SQLAlchemy 2.0 (Async)
 - **Migrations:** Alembic
@@ -14,10 +15,10 @@
 ## Архитектура
 
 Проект построен по принципам **Domain-Driven Design (DDD)**:
-- `src/domain`: Ядро бизнес-логики (Entities, Value Objects).
-- `src/application`: Сценарии использования (Use Cases) и интерфейсы.
-- `src/infrastructure`: Реализация репозиториев, работа с БД, очереди и конфигурация.
-- `src/presentation`: API эндпоинты (v1) и схемы Pydantic.
+- `src/payment/domain`: Ядро бизнес-логики (Entities, Value Objects).
+- `src/payment/application`: Сценарии использования (Use Cases) и интерфейсы.
+- `src/payment/infrastructure`: Реализация репозиториев, работа с БД, очереди и конфигурация.
+- `src/payment/presentation`: API эндпоинты (v1) и схемы Pydantic.
 
 ## Запуск проекта
 
@@ -35,6 +36,18 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=payment_service
 # Внутри Docker используйте 'db' в качестве хоста
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/payment_service
+# Пул соединений (опционально)
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30
+DB_POOL_RECYCLE=1800
+
+# Outbox settings
+OUTBOX_CLEANUP_INTERVAL=60
+OUTBOX_RETENTION_DAYS=1
+OUTBOX_BATCH_SIZE=10
+OUTBOX_EMPTY_POLLING_INTERVAL=5.0
+OUTBOX_PROCESSING_INTERVAL=1.0
 
 # Message Broker Settings
 # Внутри Docker используйте 'rabbitmq' в качестве хоста
@@ -44,6 +57,8 @@ RABBITMQ_PASS=guest
 
 # Logging Settings
 LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+LOG_DATE_FORMAT=%Y-%m-%dT%H:%M:%S
 LOG_JSON=False
 ```
 
@@ -92,12 +107,22 @@ docker compose up -d --scale api=2 --scale consumer=3 --scale relay=2
 Локально (требуется установленный `uv`):
 ```bash
 uv sync --extra test
+# Обычный запуск
 uv run pytest
+
+# Запуск с отчетом о покрытии (coverage)
+uv run pytest --cov=src
 ```
 
 Или внутри контейнера:
 ```bash
 docker compose exec api uv run pytest
+```
+
+### Статическая проверка типов (mypy)
+
+```bash
+uv run mypy src
 ```
 
 ## Примеры использования API

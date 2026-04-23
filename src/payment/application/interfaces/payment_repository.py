@@ -78,6 +78,19 @@ class IPaymentRepository(ABC):
         pass
 
     @abstractmethod
+    async def delete_processed_outbox_messages(self, older_than: datetime) -> int:
+        """
+        Удаляет старые обработанные сообщения Outbox для поддержания производительности.
+
+        Args:
+            older_than: Удалять сообщения, созданные раньше этого времени.
+
+        Returns:
+            Количество удаленных сообщений.
+        """
+        pass
+
+    @abstractmethod
     async def update_payment_status(
         self, 
         payment_id: UUID | str, 
